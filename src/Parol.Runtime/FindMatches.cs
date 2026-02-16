@@ -188,6 +188,10 @@ public static class Scanner
         var findMatches = new FindMatches(input, 0, context, matchFunction);
         foreach (var match in findMatches)
         {
+            if (match.TokenType is 1 or 2 or 3 or 4)
+            {
+                continue;
+            }
             yield return new Token(input.Substring(match.Span.Start, match.Span.Length), match.TokenType, match);
         }
     }
