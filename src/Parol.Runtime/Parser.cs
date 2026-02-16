@@ -24,6 +24,71 @@ public interface IUserActions
     void OnComment(Token token);
 }
 
+/// <summary>
+/// Conversion hook used by generated actions to map parser values to target user-defined types.
+/// </summary>
+public interface IValueConverter
+{
+    /// <summary>
+    /// Tries to convert <paramref name="value"/> into <paramref name="targetType"/>.
+    /// </summary>
+    /// <returns>
+    /// True when conversion succeeded and <paramref name="convertedValue"/> contains a compatible value.
+    /// </returns>
+    bool TryConvert(object value, Type targetType, out object? convertedValue);
+}
+
+/// <summary>
+/// Optional contract for action implementations that provide a parser-scoped <see cref="IValueConverter"/>.
+/// </summary>
+public interface IProvidesValueConverter
+{
+    /// <summary>
+    /// The converter instance to use while parsing with this action object.
+    /// </summary>
+    IValueConverter ValueConverter { get; }
+}
+
+/// <summary>
+/// Runtime conversion facade used by generated parser actions.
+/// </summary>
+public static class RuntimeValueConverter
+{
+    /// <summary>
+    /// Active converter used by <see cref="Convert{TTarget}(object)"/>.
+    /// This is set by <see cref="LLKParser.Parse(IEnumerable{Token}, IUserActions)"/> for parser scope.
+    /// </summary>
+    public static IValueConverter? Converter { get; set; }
+
+    /// <summary>
+    /// Converts <paramref name="value"/> into <typeparamref name="TTarget"/> using direct cast first,
+    /// then the currently active <see cref="Converter"/>.
+    /// </summary>
+    public static TTarget Convert<TTarget>(object value)
+    {
+        if (value == null)
+        {
+            throw new InvalidCastException($"Cannot convert null to {typeof(TTarget).FullName}.");
+        }
+
+        if (value is TTarget direct)
+        {
+            return direct;
+        }
+
+        if (Converter != null &&
+            Converter.TryConvert(value, typeof(TTarget), out var converted) &&
+            converted is TTarget typed)
+        {
+            return typed;
+        }
+
+        throw new InvalidCastException(
+            $"Cannot convert {value.GetType().FullName} to {typeof(TTarget).FullName}. " +
+            "Configure Parol.Runtime.RuntimeValueConverter.Converter to provide a grammar-agnostic conversion.");
+    }
+}
+
 public record Token(string Text, int TokenType, Match Match)
 {
     public override string ToString() => $"Token({TokenType}, \"{Text}\")";
@@ -39,41 +104,58 @@ public class LLKParser(
     private readonly int _startSymbolIndex = startSymbolIndex;
     private readonly LookaheadDfa[] _lookaheadAutomata = lookaheadAutomata;
 
+    /// <summary>
+    /// Parses <paramref name="tokens"/> with <paramref name="userActions"/>.
+    /// If actions implement <see cref="IProvidesValueConverter"/>, the provided converter is activated
+    /// for this parse call and restored afterwards.
+    /// </summary>
     private readonly Production[] _productions = productions;
     private readonly string[] _terminalNames = terminalNames;
     private readonly string[] _nonTerminalNames = nonTerminalNames;
 
     public void Parse(IEnumerable<Token> tokens, IUserActions userActions)
     {
+        var previousConverter = RuntimeValueConverter.Converter;
+        if (userActions is IProvidesValueConverter converterProvider)
+        {
+            RuntimeValueConverter.Converter = converterProvider.ValueConverter;
+        }
+
         var stack = new Stack<ParseItem>();
         stack.Push(new ParseItem(ParseType.N, _startSymbolIndex));
 
         var tokenStream = new TokenStream(tokens);
-
-        while (stack.Count > 0)
+        try
         {
-            var expected = stack.Pop();
+            while (stack.Count > 0)
+            {
+                var expected = stack.Pop();
 
-            if (expected.Type == ParseType.T)
-            {
-                var currentToken = tokenStream.Peek(0);
-                if (currentToken == null || currentToken.TokenType != expected.Index)
+                if (expected.Type == ParseType.T)
                 {
-                    throw new Exception($"Syntax error: expected {_terminalNames[expected.Index]}, found {currentToken?.ToString() ?? "EOF"}");
+                    var currentToken = tokenStream.Peek(0);
+                    if (currentToken == null || currentToken.TokenType != expected.Index)
+                    {
+                        throw new Exception($"Syntax error: expected {_terminalNames[expected.Index]}, found {currentToken?.ToString() ?? "EOF"}");
+                    }
+                    tokenStream.Consume();
                 }
-                tokenStream.Consume();
-            }
-            else if (expected.Type == ParseType.N)
-            {
-                int productionIndex = PredictProduction(expected.Index, tokenStream);
-                var production = _productions[productionIndex];
-                
-                // Push RHS in reverse order
-                for (int i = production.Rhs.Length - 1; i >= 0; i--)
+                else if (expected.Type == ParseType.N)
                 {
-                    stack.Push(production.Rhs[i]);
+                    int productionIndex = PredictProduction(expected.Index, tokenStream);
+                    var production = _productions[productionIndex];
+
+                    // Push RHS in reverse order
+                    for (int i = production.Rhs.Length - 1; i >= 0; i--)
+                    {
+                        stack.Push(production.Rhs[i]);
+                    }
                 }
             }
+        }
+        finally
+        {
+            RuntimeValueConverter.Converter = previousConverter;
         }
     }
 
