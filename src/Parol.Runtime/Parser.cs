@@ -1,10 +1,12 @@
 using Parol.Runtime.Scanner;
+using System.Linq;
 
 namespace Parol.Runtime;
 
 public enum ParseType
 {
     T, // Terminal
+    C, // Clipped terminal
     N, // Non-terminal
     E  // End of production
 }
@@ -20,7 +22,7 @@ public record LookaheadDfa(int Prod0, Trans[] Transitions, int K);
 
 public interface IUserActions
 {
-    void CallSemanticActionForProductionNumber(int productionNumber, object[] children);
+    object CallSemanticActionForProductionNumber(int productionNumber, object[] children);
     void OnComment(Token token);
 }
 
@@ -122,6 +124,7 @@ public class LLKParser(
         }
 
         var stack = new Stack<ParseItem>();
+        var valueStack = new Stack<object>();
         stack.Push(new ParseItem(ParseType.N, _startSymbolIndex));
 
         var tokenStream = new TokenStream(tokens);
@@ -131,7 +134,7 @@ public class LLKParser(
             {
                 var expected = stack.Pop();
 
-                if (expected.Type == ParseType.T)
+                if (expected.Type == ParseType.T || expected.Type == ParseType.C)
                 {
                     var currentToken = tokenStream.Peek(0);
                     if (currentToken == null || currentToken.TokenType != expected.Index)
@@ -139,17 +142,68 @@ public class LLKParser(
                         throw new Exception($"Syntax error: expected {_terminalNames[expected.Index]}, found {currentToken?.ToString() ?? "EOF"}");
                     }
                     tokenStream.Consume();
+                    if (expected.Type == ParseType.T)
+                    {
+                        valueStack.Push(currentToken);
+                    }
                 }
                 else if (expected.Type == ParseType.N)
                 {
                     int productionIndex = PredictProduction(expected.Index, tokenStream);
                     var production = _productions[productionIndex];
 
+                    stack.Push(new ParseItem(ParseType.E, productionIndex));
+
                     // Push RHS in reverse order
                     for (int i = production.Rhs.Length - 1; i >= 0; i--)
                     {
                         stack.Push(production.Rhs[i]);
                     }
+                }
+                else
+                {
+                    var productionIndex = expected.Index;
+                    var production = _productions[productionIndex];
+                    var childCount = production.Rhs.Count(item => item.Type != ParseType.C);
+                    var children = new object[childCount];
+                    for (int i = childCount - 1; i >= 0; i--)
+                    {
+                        if (valueStack.Count == 0)
+                        {
+                            throw new Exception($"Internal parser error: missing child value for production {productionIndex}");
+                        }
+                        children[i] = valueStack.Pop();
+                    }
+
+                    object value;
+                    try
+                    {
+                        value = userActions.CallSemanticActionForProductionNumber(productionIndex, children);
+                    }
+                    catch (InvalidOperationException)
+                    {
+                        var hasTokenChild = children.Any(child => child is Token);
+                        var hasNonTokenChild = children.Any(child => child is not Token);
+                        if (!hasTokenChild || !hasNonTokenChild)
+                        {
+                            throw;
+                        }
+
+                        var filteredChildren = children.Where(child => child is not Token).ToArray();
+                        try
+                        {
+                            value = userActions.CallSemanticActionForProductionNumber(productionIndex, filteredChildren);
+                        }
+                        catch (InvalidOperationException retryException)
+                        {
+                            var rawTypes = string.Join(", ", children.Select(child => child?.GetType().Name ?? "null"));
+                            var filteredTypes = string.Join(", ", filteredChildren.Select(child => child?.GetType().Name ?? "null"));
+                            throw new InvalidOperationException(
+                                $"Semantic mapping failed for production {productionIndex}. Raw child types: [{rawTypes}], filtered child types: [{filteredTypes}]",
+                                retryException);
+                        }
+                    }
+                    valueStack.Push(value);
                 }
             }
         }
