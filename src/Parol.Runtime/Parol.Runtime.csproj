@@ -7,11 +7,12 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <WarningsAsErrors>$(WarningsAsErrors);CS1591</WarningsAsErrors>
     <PackageId>Parol.Runtime</PackageId>
-    <Version>0.1.0</Version>
+    <Version>0.1.1</Version>
     <Title>Parol.Runtime</Title>
     <Description>Runtime library for scanner and LL(k) parser support used by parol-generated .NET parsers.</Description>
     <Authors>Parol.Runtime Contributors</Authors>
     <PackageTags>parser;scanner;llk;compiler;parol</PackageTags>
+    <PackageLicenseExpression>Apache-2.0 OR MIT</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/jsinger67/parol-dotnet</PackageProjectUrl>
     <RepositoryUrl>https://github.com/jsinger67/parol-dotnet.git</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
