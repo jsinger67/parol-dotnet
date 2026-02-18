@@ -2,20 +2,52 @@ using System.Collections;
 
 namespace Parol.Runtime.Scanner;
 
+/// <summary>
+/// Holds mutable scanner mode state during tokenization.
+/// </summary>
 public interface IScannerContext
 {
+    /// <summary>
+    /// Available scanner modes.
+    /// </summary>
     ScannerMode[] Modes { get; }
+    /// <summary>
+    /// Index of the currently active mode.
+    /// </summary>
     int CurrentMode { get; set; }
+    /// <summary>
+    /// Mode stack used by push/pop transitions.
+    /// </summary>
     Stack<int> ModeStack { get; }
+    /// <summary>
+    /// Applies mode transitions associated with the provided token type.
+    /// </summary>
     void HandleModeTransition(int tokenType);
 }
 
+/// <summary>
+/// Default scanner context implementation.
+/// </summary>
 public class ScannerContext(ScannerMode[] modes) : IScannerContext
 {
+    /// <summary>
+    /// Available scanner modes.
+    /// </summary>
     public ScannerMode[] Modes { get; } = modes;
+
+    /// <summary>
+    /// Index of the currently active mode.
+    /// </summary>
     public int CurrentMode { get; set; } = 0;
+
+    /// <summary>
+    /// Mode stack used by push/pop transitions.
+    /// </summary>
     public Stack<int> ModeStack { get; } = new();
 
+    /// <summary>
+    /// Applies scanner mode transitions for a produced token type.
+    /// </summary>
     public void HandleModeTransition(int tokenType)
     {
         var mode = Modes[CurrentMode];
@@ -42,12 +74,18 @@ public class ScannerContext(ScannerMode[] modes) : IScannerContext
     }
 }
 
+/// <summary>
+/// Enumerates scanner matches for an input string.
+/// </summary>
 public class FindMatches(string input, int offset, IScannerContext context, Func<char, int?> matchFunction) : IEnumerable<Match>
 {
     private readonly CharIter _charIter = new(input, offset);
     private readonly IScannerContext _context = context;
     private readonly Func<char, int?> _matchFunction = matchFunction;
 
+    /// <summary>
+    /// Returns an enumerator over all matches produced from the current offset.
+    /// </summary>
     public IEnumerator<Match> GetEnumerator()
     {
         while (true)
@@ -180,8 +218,19 @@ public class FindMatches(string input, int offset, IScannerContext context, Func
     }
 }
 
+/// <summary>
+/// Convenience API for scanning input into parser tokens.
+/// </summary>
 public static class Scanner
 {
+    /// <summary>
+    /// Scans input text and yields tokens for non-skipped token types.
+    /// </summary>
+    /// <param name="input">Input text to scan.</param>
+    /// <param name="fileName">Logical source file name.</param>
+    /// <param name="matchFunction">Maps a character to its character class index.</param>
+    /// <param name="modes">Scanner modes and DFAs.</param>
+    /// <returns>Sequence of scanned tokens.</returns>
     public static IEnumerable<Token> Scan(string input, string fileName, Func<char, int?> matchFunction, ScannerMode[] modes)
     {
         var context = new ScannerContext(modes);

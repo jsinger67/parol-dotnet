@@ -27,6 +27,9 @@ jobs:
       - name: Restore
         run: dotnet restore Parol.Runtime.slnx
 
+      - name: Verify public API documentation
+        run: dotnet build src/Parol.Runtime/Parol.Runtime.csproj -c Release --no-restore -warnaserror:CS1591
+
       - name: Build (Release)
         run: dotnet build Parol.Runtime.slnx -c Release --no-restore
 

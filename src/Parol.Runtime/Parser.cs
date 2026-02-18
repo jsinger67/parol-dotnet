@@ -3,26 +3,67 @@ using System.Linq;
 
 namespace Parol.Runtime;
 
+/// <summary>
+/// Parse stack symbol kinds used by the LL(k) parser runtime.
+/// </summary>
 public enum ParseType
 {
+    /// <summary>
+    /// Terminal symbol.
+    /// </summary>
     T, // Terminal
+    /// <summary>
+    /// Clipped terminal symbol (consumed but not forwarded as semantic child).
+    /// </summary>
     C, // Clipped terminal
+    /// <summary>
+    /// Non-terminal symbol.
+    /// </summary>
     N, // Non-terminal
+    /// <summary>
+    /// End-of-production marker.
+    /// </summary>
     E  // End of production
 }
 
+/// <summary>
+/// Item on the parse stack.
+/// </summary>
 public record ParseItem(ParseType Type, int Index);
 
+/// <summary>
+/// Grammar production definition.
+/// </summary>
 public record Production(int Lhs, ParseItem[] Rhs);
 
+/// <summary>
+/// Lookahead DFA transition for production prediction.
+/// </summary>
 public record Trans(int From, int Term, int To, int ProdNum);
 
+/// <summary>
+/// Lookahead DFA used to predict the production for a non-terminal.
+/// </summary>
 public record LookaheadDfa(int Prod0, Trans[] Transitions, int K);
 
 
+/// <summary>
+/// Callback contract implemented by generated user action classes.
+/// </summary>
 public interface IUserActions
 {
+    /// <summary>
+    /// Invokes the semantic action for the specified production.
+    /// </summary>
+    /// <param name="productionNumber">Production number to execute.</param>
+    /// <param name="children">Child values produced by the production's right-hand side.</param>
+    /// <returns>The semantic value to push to the parser value stack.</returns>
     object CallSemanticActionForProductionNumber(int productionNumber, object[] children);
+
+    /// <summary>
+    /// Called for comment tokens emitted by generated parsers.
+    /// </summary>
+    /// <param name="token">The comment token.</param>
     void OnComment(Token token);
 }
 
@@ -91,11 +132,20 @@ public static class RuntimeValueConverter
     }
 }
 
+/// <summary>
+/// Token produced by scanner runtime and consumed by parser runtime.
+/// </summary>
 public record Token(string Text, int TokenType, Match Match)
 {
+    /// <summary>
+    /// Returns a human-readable token representation.
+    /// </summary>
     public override string ToString() => $"Token({TokenType}, \"{Text}\")";
 }
 
+/// <summary>
+/// LL(k) parser runtime for generated parser tables.
+/// </summary>
 public class LLKParser(
     int startSymbolIndex,
     LookaheadDfa[] lookaheadAutomata,
@@ -105,16 +155,17 @@ public class LLKParser(
 {
     private readonly int _startSymbolIndex = startSymbolIndex;
     private readonly LookaheadDfa[] _lookaheadAutomata = lookaheadAutomata;
+    private readonly Production[] _productions = productions;
+    private readonly string[] _terminalNames = terminalNames;
+    private readonly string[] _nonTerminalNames = nonTerminalNames;
 
     /// <summary>
     /// Parses <paramref name="tokens"/> with <paramref name="userActions"/>.
     /// If actions implement <see cref="IProvidesValueConverter"/>, the provided converter is activated
     /// for this parse call and restored afterwards.
     /// </summary>
-    private readonly Production[] _productions = productions;
-    private readonly string[] _terminalNames = terminalNames;
-    private readonly string[] _nonTerminalNames = nonTerminalNames;
-
+    /// <param name="tokens">Input token stream.</param>
+    /// <param name="userActions">Semantic action receiver.</param>
     public void Parse(IEnumerable<Token> tokens, IUserActions userActions)
     {
         var previousConverter = RuntimeValueConverter.Converter;
