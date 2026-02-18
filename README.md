@@ -55,3 +55,8 @@ See [CHANGELOG.md](CHANGELOG.md).
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## Release
+
+- Checklist: [RELEASE.md](RELEASE.md)
+- Copy/paste release routine: [RELEASE_TEMPLATE.md](RELEASE_TEMPLATE.md)

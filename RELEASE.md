@@ -2,6 +2,8 @@
 
 Use this checklist before publishing a new `Parol.Runtime` version.
 
+For a copy/paste routine, see `RELEASE_TEMPLATE.md`.
+
 ## 1) Update metadata and docs
 
 - [ ] Confirm package version is updated
