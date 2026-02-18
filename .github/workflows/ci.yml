@@ -1,0 +1,34 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore
+        run: dotnet restore Parol.Runtime.slnx
+
+      - name: Build (Release)
+        run: dotnet build Parol.Runtime.slnx -c Release --no-restore
+
+      - name: Test (Release)
+        run: dotnet test Parol.Runtime.slnx -c Release --no-build

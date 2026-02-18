@@ -4,6 +4,16 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <PackageId>Parol.Runtime</PackageId>
+    <Title>Parol.Runtime</Title>
+    <Description>Runtime library for scanner and LL(k) parser support used by parol-generated .NET parsers.</Description>
+    <Authors>Parol.Runtime Contributors</Authors>
+    <PackageTags>parser;scanner;llk;compiler;parol</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="..\..\README.md" Pack="true" PackagePath="\" Link="README.md" />
+  </ItemGroup>
 
 </Project>
