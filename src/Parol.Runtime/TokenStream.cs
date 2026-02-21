@@ -8,7 +8,7 @@ namespace Parol.Runtime;
 public class TokenStream(IEnumerable<Token> tokens)
 {
     private readonly IEnumerator<Token> _enumerator = tokens.GetEnumerator();
-    private readonly List<Token> _buffer = new();
+    private readonly List<Token> _buffer = [];
     private bool _eofReached = false;
 
     /// <summary>
