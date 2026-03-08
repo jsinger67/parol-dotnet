@@ -10,6 +10,14 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 ### Added
 - No entries yet.
 
+## [0.1.2] - 2026-03-08
+
+- Improve structured error reporting
+    - Enhance LLKParser with source name support for improved diagnostics and add
+    ParserDiagnosticLocation
+    - Provide new exception types for different error categories
+
+
 ## [0.1.1] - 2026-02-18
 
 ### Added

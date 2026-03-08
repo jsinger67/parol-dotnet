@@ -99,7 +99,7 @@ public static class RuntimeValueConverter
 {
     /// <summary>
     /// Active converter used by <see cref="Convert{TTarget}(object)"/>.
-    /// This is set by <see cref="LLKParser.Parse(IEnumerable{Token}, IUserActions)"/> for parser scope.
+    /// This is set by <see cref="LLKParser.Parse(IEnumerable{Token}, IUserActions, string?)"/> for parser scope.
     /// </summary>
     public static IValueConverter? Converter { get; set; }
 
@@ -168,6 +168,19 @@ public class LLKParser(
     /// <param name="userActions">Semantic action receiver.</param>
     public void Parse(IEnumerable<Token> tokens, IUserActions userActions)
     {
+        Parse(tokens, userActions, sourceName: null);
+    }
+
+    /// <summary>
+    /// Parses <paramref name="tokens"/> with <paramref name="userActions"/>.
+    /// If actions implement <see cref="IProvidesValueConverter"/>, the provided converter is activated
+    /// for this parse call and restored afterwards.
+    /// </summary>
+    /// <param name="tokens">Input token stream.</param>
+    /// <param name="userActions">Semantic action receiver.</param>
+    /// <param name="sourceName">Optional source name (usually file path) used in diagnostic messages.</param>
+    public void Parse(IEnumerable<Token> tokens, IUserActions userActions, string? sourceName = null)
+    {
         var previousConverter = RuntimeValueConverter.Converter;
         if (userActions is IProvidesValueConverter converterProvider)
         {
@@ -190,7 +203,12 @@ public class LLKParser(
                     var currentToken = tokenStream.Peek(0);
                     if (currentToken == null || currentToken.TokenType != expected.Index)
                     {
-                        throw new Exception($"Syntax error: expected {_terminalNames[expected.Index]}, found {currentToken?.ToString() ?? "EOF"}");
+                        var location = ParserDiagnosticLocation.FromToken(sourceName, currentToken);
+                        throw new ParserSyntaxException(
+                            _terminalNames[expected.Index],
+                            expected.Index,
+                            currentToken,
+                            location);
                     }
                     tokenStream.Consume();
                     if (expected.Type == ParseType.T)
@@ -200,7 +218,7 @@ public class LLKParser(
                 }
                 else if (expected.Type == ParseType.N)
                 {
-                    int productionIndex = PredictProduction(expected.Index, tokenStream);
+                    int productionIndex = PredictProduction(expected.Index, tokenStream, sourceName);
                     var production = _productions[productionIndex];
 
                     stack.Push(new ParseItem(ParseType.E, productionIndex));
@@ -221,7 +239,8 @@ public class LLKParser(
                     {
                         if (valueStack.Count == 0)
                         {
-                            throw new Exception($"Internal parser error: missing child value for production {productionIndex}");
+                            var location = ParserDiagnosticLocation.FromToken(sourceName, tokenStream.Peek(0));
+                            throw new ParserInternalException(productionIndex, "missing child value", location);
                         }
                         children[i] = valueStack.Pop();
                     }
@@ -249,8 +268,13 @@ public class LLKParser(
                         {
                             var rawTypes = string.Join(", ", children.Select(child => child?.GetType().Name ?? "null"));
                             var filteredTypes = string.Join(", ", filteredChildren.Select(child => child?.GetType().Name ?? "null"));
-                            throw new InvalidOperationException(
-                                $"Semantic mapping failed for production {productionIndex}. Raw child types: [{rawTypes}], filtered child types: [{filteredTypes}]",
+                            var locationToken = children.OfType<Token>().FirstOrDefault();
+                            var location = ParserDiagnosticLocation.FromToken(sourceName, locationToken);
+                            throw new ParserSemanticException(
+                                productionIndex,
+                                rawTypes,
+                                filteredTypes,
+                                location,
                                 retryException);
                         }
                     }
@@ -264,7 +288,7 @@ public class LLKParser(
         }
     }
 
-    private int PredictProduction(int nonTerminalIndex, TokenStream tokens)
+    private int PredictProduction(int nonTerminalIndex, TokenStream tokens, string? sourceName)
     {
         var dfa = _lookaheadAutomata[nonTerminalIndex];
         if (dfa.Transitions.Length == 0)
@@ -302,8 +326,22 @@ public class LLKParser(
 
         if (prodNum >= 0) return prodNum;
         if (lastProdNum >= 0) return lastProdNum;
-        
-        throw new Exception($"Production prediction failed for non-terminal {_nonTerminalNames[nonTerminalIndex]}");
+
+        var lookaheadToken = tokens.Peek(0);
+        var location = ParserDiagnosticLocation.FromToken(sourceName, lookaheadToken);
+        var expectedTokenNames = _lookaheadAutomata[nonTerminalIndex].Transitions
+            .Where(t => t.From == state)
+            .Select(t => t.Term)
+            .Distinct()
+            .Select(term => term >= 0 && term < _terminalNames.Length ? _terminalNames[term] : $"token({term})")
+            .ToArray();
+
+        throw new ParserPredictionException(
+            _nonTerminalNames[nonTerminalIndex],
+            location,
+            expectedTokenNames,
+            lookaheadToken,
+            lookaheadToken?.TokenType);
     }
 }
 
