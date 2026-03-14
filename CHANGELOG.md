@@ -8,7 +8,7 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 ## [Unreleased]
 
 ### Added
-- No entries yet.
+- Added corresponding LR parser runtime support for generated C# LALR(1) parsers.
 
 ## [0.1.2] - 2026-03-08
 
