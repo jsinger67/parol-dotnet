@@ -32,8 +32,10 @@ dotnet add package Parol.Runtime
 - Use the generated parser and actions in your application.
 - The generated code provides all runtime data structures required by this package.
 
-## Target Framework
+## Target Frameworks
 
+- `net8.0`
+- `net9.0`
 - `net10.0`
 
 ## Building
