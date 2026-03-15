@@ -8,7 +8,7 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 ## [Unreleased]
 
 ### Added
-- Multi-target NuGet package support for `net8.0`, `net9.0`, and `net10.0`.
+- Multi-target NuGet package support for `netstandard2.0`, `net8.0`, `net9.0`, and `net10.0`.
 
 ## [0.1.3] - 2026-03-14
 

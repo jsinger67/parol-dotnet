@@ -65,9 +65,9 @@ public class ScannerContext(ScannerMode[] modes) : IScannerContext
                 CurrentMode = transition.TargetMode!.Value;
                 break;
             case TransitionType.PopMode:
-                if (ModeStack.TryPop(out var prev))
+                if (ModeStack.Count > 0)
                 {
-                    CurrentMode = prev;
+                    CurrentMode = ModeStack.Pop();
                 }
                 break;
         }
