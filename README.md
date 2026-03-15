@@ -51,6 +51,21 @@ dotnet build Parol.Runtime.slnx -c Release
 dotnet test Parol.Runtime.slnx
 ```
 
+## Multi-Target Build and Test Behavior
+
+- `dotnet build` on this solution builds all configured target frameworks for each project.
+- `dotnet test` on this solution runs tests for all target frameworks configured in `tests/Parol.Runtime.Tests/Parol.Runtime.Tests.csproj`.
+- `netstandard2.0` is build-validated for the runtime project, but tests run on executable runtimes (`net8.0`, `net9.0`, `net10.0`).
+
+If a machine does not have all required SDKs/runtimes installed, commands that run all targets can fail.
+Use a framework-specific test command to run one target only:
+
+```bash
+dotnet test tests/Parol.Runtime.Tests/Parol.Runtime.Tests.csproj -c Release -f net8.0
+```
+
+CI and publish workflows install .NET SDKs `8.0.x`, `9.0.x`, and `10.0.x` and execute tests per target framework.
+
 ## Release Notes
 
 See [CHANGELOG.md](CHANGELOG.md).
