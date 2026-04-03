@@ -9,6 +9,13 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ### Added
 
+## [0.2.1] - 2026-04-03
+
+### Changed
+- Update logo path in README to use absolute URL for proper display
+- Update project description and tags to include LALR(1) support
+- Update README to clarify support for LL(k) and LALR(1) parsers
+
 ## [0.2.0] - 2026-03-15
 
 ### Added

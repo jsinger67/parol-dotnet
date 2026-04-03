@@ -7,7 +7,7 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <WarningsAsErrors>$(WarningsAsErrors);CS1591</WarningsAsErrors>
     <PackageId>Parol.Runtime</PackageId>
-    <Version>0.2.0</Version>
+    <Version>0.2.1</Version>
     <Title>Parol.Runtime</Title>
     <Description>Runtime library for scanner and LL(k)/LALR(1) parser support used by parol-generated .NET parsers.</Description>
     <Authors>Parol.Runtime Contributors</Authors>
