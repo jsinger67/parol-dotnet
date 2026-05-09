@@ -88,13 +88,25 @@ public class FindMatches(string input, int offset, IScannerContext context, Func
     /// </summary>
     public IEnumerator<Match> GetEnumerator()
     {
+        foreach (var (match, _) in EnumerateWithSourceMode())
+        {
+            yield return match;
+        }
+    }
+
+    /// <summary>
+    /// Returns matches together with the scanner mode index they were matched in.
+    /// </summary>
+    public IEnumerable<(Match Match, int SourceMode)> EnumerateWithSourceMode()
+    {
         while (true)
         {
             var match = FindNext();
             if (match != null)
             {
+                var sourceMode = _context.CurrentMode;
                 _context.HandleModeTransition(match.TokenType);
-                yield return match;
+                yield return (match, sourceMode);
             }
             else
             {
@@ -223,6 +235,8 @@ public class FindMatches(string input, int offset, IScannerContext context, Func
 /// </summary>
 public static class Scanner
 {
+    private static readonly int[] DefaultSkipTokens = [1, 2, 3, 4];
+
     /// <summary>
     /// Scans input text and yields tokens for non-skipped token types.
     /// </summary>
@@ -233,11 +247,37 @@ public static class Scanner
     /// <returns>Sequence of scanned tokens.</returns>
     public static IEnumerable<Token> Scan(string input, string fileName, Func<char, int?> matchFunction, ScannerMode[] modes)
     {
+        var skipTokensByMode = new int[modes.Length][];
+        for (var i = 0; i < modes.Length; i++)
+        {
+            skipTokensByMode[i] = DefaultSkipTokens;
+        }
+
+        return Scan(input, fileName, matchFunction, modes, skipTokensByMode);
+    }
+
+    /// <summary>
+    /// Scans input text and yields tokens for non-skipped token types.
+    /// </summary>
+    /// <param name="input">Input text to scan.</param>
+    /// <param name="fileName">Logical source file name.</param>
+    /// <param name="matchFunction">Maps a character to its character class index.</param>
+    /// <param name="modes">Scanner modes and DFAs.</param>
+    /// <param name="skipTokensByMode">Scanner-mode-specific token type indices that should be skipped.</param>
+    /// <returns>Sequence of scanned tokens.</returns>
+    public static IEnumerable<Token> Scan(
+        string input,
+        string fileName,
+        Func<char, int?> matchFunction,
+        ScannerMode[] modes,
+        int[][] skipTokensByMode)
+    {
         var context = new ScannerContext(modes);
         var findMatches = new FindMatches(input, 0, context, matchFunction);
-        foreach (var match in findMatches)
+        foreach (var (match, sourceMode) in findMatches.EnumerateWithSourceMode())
         {
-            if (match.TokenType is 1 or 2 or 3 or 4)
+            if (sourceMode < skipTokensByMode.Length &&
+                Array.IndexOf(skipTokensByMode[sourceMode], match.TokenType) >= 0)
             {
                 continue;
             }
