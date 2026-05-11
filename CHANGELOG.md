@@ -8,6 +8,10 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 ## [Unreleased]
 
 ### Added
+
+## [0.3.0] - 2026-05-11
+
+### Added
 - Add scanner-mode-specific skip token support in `Scanner.Scan`.
     - New overload accepts `skipTokensByMode` to align runtime behavior with `%skip` per scanner state.
     - Existing `Scanner.Scan` overload keeps backward-compatible default skipping for token types `1..4`.
